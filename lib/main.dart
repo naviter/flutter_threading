@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:isolate';
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:flutter_isolate/flutter_isolate.dart';
 import 'ffi.dart'; // Your FFI file that exposes getThreadId()
 
 void main() {
@@ -55,6 +57,7 @@ class _ThreadIdDemoState extends State<ThreadIdDemo> {
   String uiThreadId = '';
   String serviceThreadId = '';
   List<String> isolateThreadIds = [];
+
 
   @override
   void initState() {
@@ -118,9 +121,9 @@ class _ThreadIdDemoState extends State<ThreadIdDemo> {
 
     // Spawn 5 isolates
     final results = <String>[];
-    await Future.wait(List.generate(5, (_) async {
+    await Future.wait(List.generate(15, (_) async {
       final receivePort = ReceivePort();
-      await Isolate.spawn(_isolateEntry, receivePort.sendPort);
+      await FlutterIsolate.spawn(_isolateEntry, receivePort.sendPort);
       return await receivePort.first as String;
     }).map((f) async {
       results.add(await f);
@@ -129,11 +132,6 @@ class _ThreadIdDemoState extends State<ThreadIdDemo> {
     setState(() {
       isolateThreadIds = results;
     });
-  }
-
-  static void _isolateEntry(SendPort sendPort) {
-    final id = FfiUtilsInterface().utils.getThreadId();
-    sendPort.send(id.toString());
   }
 
   @override
@@ -163,4 +161,23 @@ class _ThreadIdDemoState extends State<ThreadIdDemo> {
       ),
     );
   }
+}
+
+@pragma('vm:entry-point')
+Future<void> _isolateEntry(SendPort sendPort) async {
+  final itf = FfiUtilsInterface();
+  var id = itf.utils.getThreadId();
+  sendPort.send(id.toString());
+
+  Timer.periodic(
+    const Duration(seconds: 1),
+    (timer) {
+      final newId = itf.utils.getThreadId();
+      if (newId != id) {
+        // ignore: avoid_print
+        print('Thread id changed, old $id, new $newId');
+        id = newId;
+      }
+    },
+  );
 }

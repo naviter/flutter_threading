@@ -11,6 +11,7 @@ dependencies:
   flutter_foreground_task:
   flutter:
     sdk: flutter
+  flutter_isolate: 2.0.4
 
   cupertino_icons: ^1.0.8
 
